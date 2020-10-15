@@ -94,13 +94,13 @@ void* writer_thread(void* args){
 int main(){
     srand(41);
 
-    int num_readers = 2;
-    int num_writers = 5;
+    int num_readers = 20;
+    int num_writers = 10;
 
-    int reader_runs = 100;
-    int writer_runs = 40; // num_readers * reader_run = writer_run * num_writers
+    int reader_runs = 3;
+    int writer_runs = 6; // num_readers * reader_run = writer_run * num_writers
 
-    int buffer_size = 50;
+    int buffer_size = 60;
 
     pthread_t writers[num_writers];
     pthread_t readers[num_readers];
