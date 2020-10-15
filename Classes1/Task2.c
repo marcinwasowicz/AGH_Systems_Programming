@@ -1,18 +1,36 @@
 #include <pthread.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 typedef struct{
     int size;
     int number_items;
     int reading_point;
     int writing_point;
+    int* data;
 
     pthread_mutex_t index_mutex;
     pthread_cond_t size_cond;
 
-}buffer;
+}concurrent_buffer;
 
-void read_buffer(buffer* b){
+concurrent_buffer allocate_buffer(int size){
+    concurrent_buffer buff;
+    buff.data = (int*) malloc(size * sizeof(int));
+    buff.size = size;
+    buff.writing_point = 0;
+    buff.reading_point = 0;
+    buff.number_items = 0;
+    pthread_mutex_init(&buff.index_mutex, NULL);
+    pthread_cond_init(&buff.size_cond, NULL);
+    return buff;
+}
+
+void deallocate_buffer(concurrent_buffer* buffer){
+    free(buffer->data);
+}
+
+void read_from_concurrent_buffer(concurrent_buffer* b){
     pthread_mutex_lock(&b->index_mutex);
     if(b->number_items == 0){
         pthread_cond_wait(&b->size_cond, &b->index_mutex);
@@ -23,7 +41,7 @@ void read_buffer(buffer* b){
     }
 
     b->number_items--;
-    printf("%ld%s%d\n",pthread_self(), ": reading from index: ", b->reading_point);
+    printf("%ld%s%d%s%d\n",pthread_self(), ": reading from index: ", b->reading_point, " value is: ", b->data[b->reading_point]);
     b->reading_point++;
     b->reading_point %= b->size;
 
@@ -32,7 +50,7 @@ void read_buffer(buffer* b){
     pthread_mutex_unlock(&b->index_mutex);
 }
 
-void write_buffer(buffer* b){
+void write_to_concurrent_buffer(concurrent_buffer* b){
     pthread_mutex_lock(&b->index_mutex);
     if(b->number_items == b->size){
         pthread_cond_wait(&b->size_cond, &b->index_mutex);
@@ -43,7 +61,9 @@ void write_buffer(buffer* b){
     }
 
     b->number_items++;
-    printf("%ld%s%d\n",pthread_self() ,": writing to index: ", b->writing_point);
+    int val = rand();
+    b->data[b->writing_point] = val;
+    printf("%ld%s%d%s%d\n",pthread_self() ,": writing to index: ", b->writing_point, " value is: ", b->data[b->writing_point]);
     b->writing_point++;
     b->writing_point %= b->size;
 
@@ -51,57 +71,62 @@ void write_buffer(buffer* b){
     pthread_mutex_unlock(&b->index_mutex);
 }
 
-buffer allocate_buffer(int size){
-    buffer buff;
-    buff.size = size;
-    buff.writing_point = 0;
-    buff.reading_point = 0;
-    buff.number_items = 0;
-    pthread_mutex_init(&buff.index_mutex, NULL);
-    pthread_cond_init(&buff.size_cond, NULL);
-    return buff;
-}
-
 void* reader_thread(void* args){
     void** arg_arr = (void**) args;
-    buffer* b = (buffer*) arg_arr[0];
+    concurrent_buffer* b = (concurrent_buffer*) arg_arr[0];
     int* max_runs = (int*) arg_arr[1];
 
     for(int i = 0; i< *max_runs; i++){
-        read_buffer(b);
+        read_from_concurrent_buffer(b);
     }
 }
 
 void* writer_thread(void* args){
     void** arg_arr = (void**) args;
-    buffer* b = (buffer*) arg_arr[0];
+    concurrent_buffer* b = (concurrent_buffer*) arg_arr[0];
     int* max_runs = (int*) arg_arr[1];
 
     for(int i = 0; i< *max_runs; i++){
-        write_buffer(b);
+        write_to_concurrent_buffer(b);
     }    
 }
 
 int main(){
-    int max_runs = 1000;
-    int num_threads = 10000;
-    buffer buff = allocate_buffer(1);
+    srand(41);
 
-    void* args_arr[] = {(void*) &buff, (void *) &max_runs};
+    int num_readers = 2;
+    int num_writers = 5;
 
-    pthread_t threads[num_threads];
+    int reader_runs = 100;
+    int writer_runs = 40; // num_readers * reader_run = writer_run * num_writers
 
-    for(int i = 0; i<num_threads/2; i++){
-        pthread_create(&threads[i], NULL, writer_thread, args_arr);
+    int buffer_size = 50;
+
+    pthread_t writers[num_writers];
+    pthread_t readers[num_readers];
+
+    concurrent_buffer buffer = allocate_buffer(buffer_size);
+
+    void* reader_args[] =  {(void*) &buffer, (void*) &reader_runs};
+    void* writer_args[] =  {(void*) &buffer, (void*) &writer_runs};
+
+    for(int i = 0; i<num_readers; i++){
+        pthread_create(&readers[i], NULL, reader_thread, reader_args);
     }
 
-    for(int i = num_threads/2; i<num_threads; i++){
-        pthread_create(&threads[i], NULL, reader_thread, args_arr);
+    for(int i = 0; i<num_writers; i++){
+        pthread_create(&writers[i], NULL, writer_thread, writer_args);
     }
 
-    for(int i = 0; i<num_threads; i++){
-        pthread_join(threads[i], NULL);
+    for(int i = 0; i<num_readers; i++){
+        pthread_join(readers[i], NULL);
     }
+
+    for(int i = 0; i<num_writers; i++){
+        pthread_join(writers[i], NULL);
+    }
+
+    deallocate_buffer(&buffer);
 
     return 0;
 }
