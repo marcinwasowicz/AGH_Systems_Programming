@@ -92,7 +92,6 @@ void* reader_thread(void* args){
     for(int i = 0; i<*max_runs;){
         if(read_from_buffer(&buffer_arr[rand() % *array_size])){
             i++;
-            continue;
         }
     }
 }
