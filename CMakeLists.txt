@@ -11,3 +11,6 @@ target_link_libraries(Classes1_task1 pthread)
 
 add_executable(Classes1_task3 Classes1/Task3.c)
 target_link_libraries(Classes1_task3 pthread)
+
+add_executable(Classes1_task5 Classes1/Task5.c)
+target_link_libraries(Classes1_task5 pthread)
