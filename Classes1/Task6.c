@@ -4,9 +4,10 @@
 
 typedef struct{
     int size;
-    int number_items;
+    int reading_time;
     int reading_point;
     int writing_point;
+    int number_items;
     int* data;
 
     pthread_mutex_t index_mutex;
@@ -20,6 +21,7 @@ concurrent_buffer allocate_buffer(int size){
     buff.size = size;
     buff.writing_point = 0;
     buff.reading_point = 0;
+    buff.reading_time = 0;
     buff.number_items = 0;
     pthread_mutex_init(&buff.index_mutex, NULL);
     pthread_cond_init(&buff.size_cond, NULL);
@@ -32,11 +34,12 @@ void deallocate_buffer(concurrent_buffer* buffer){
 
 void read_from_concurrent_buffer(concurrent_buffer* b){
     pthread_mutex_lock(&b->index_mutex);
-    while(b->number_items == 0){
+    while(!b->reading_time){
         pthread_cond_wait(&b->size_cond, &b->index_mutex);
     }
 
-    if(b->number_items == b->size){
+    if(b->number_items == 1){
+        b->reading_time = 0;
         pthread_cond_broadcast(&b->size_cond);
     }
 
@@ -50,11 +53,12 @@ void read_from_concurrent_buffer(concurrent_buffer* b){
 
 void write_to_concurrent_buffer(concurrent_buffer* b){
     pthread_mutex_lock(&b->index_mutex);
-    while(b->number_items == b->size){
+    while(b->reading_time){
         pthread_cond_wait(&b->size_cond, &b->index_mutex);
     }
 
-    if(b->number_items == 0){
+    if(b->number_items == b->size - 1){
+        b->reading_time = 1;
         pthread_cond_broadcast(&b->size_cond);
     }
 
@@ -64,7 +68,7 @@ void write_to_concurrent_buffer(concurrent_buffer* b){
     printf("%ld%s%d%s%d\n",pthread_self() ,": writing to index: ", b->writing_point, " value is: ", b->data[b->writing_point]);
     b->writing_point++;
     b->writing_point %= b->size;
-    
+
     pthread_mutex_unlock(&b->index_mutex);
 }
 
@@ -85,7 +89,7 @@ void* writer_thread(void* args){
 
     for(int i = 0; i< *max_runs; i++){
         write_to_concurrent_buffer(b);
-    }    
+    }
 }
 
 int main(){
@@ -97,7 +101,7 @@ int main(){
     int reader_runs = 4;
     int writer_runs = 10; // num_readers * reader_run = writer_run * num_writers
 
-    int buffer_size = 41;
+    int buffer_size = 50; // num_readers * readers_run must be divisible by buffer_size
 
     pthread_t writers[num_writers];
     pthread_t readers[num_readers];
@@ -127,3 +131,4 @@ int main(){
 
     return 0;
 }
+
