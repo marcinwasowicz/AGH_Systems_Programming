@@ -162,7 +162,7 @@ int main(){
         pthread_create(&readers[i], NULL, reader_thread, (void*) reader_args);
     }
 
-    pthread_create(&critic, NULL, critic_round, (void*) &object);
+    pthread_create(&critic, NULL, critic_thread, (void*) &object);
 
     for(int i = 0; i<num_readers; i++){
         pthread_join(readers[i], NULL);
