@@ -171,13 +171,6 @@ ssize_t linked_write(struct file *filp, const char __user *user_buf,
 
 	printk(KERN_WARNING "linked: write, count=%zu f_pos=%lld\n",
 		count, *f_pos);
-	// condition wait mechanism
-	mutex_lock(&rw_mutex);
-	while(reader_count > 0){
-		mutex_unlock(&rw_mutex);
-		wait_event_interruptible(w_queue, true);
-		mutex_lock(&rw_mutex);
-	}
 	
 	for (i = 0; i < count; i += INTERNAL_SIZE) {
 		size_t to_copy = min((size_t) INTERNAL_SIZE, count - i);
@@ -198,12 +191,20 @@ ssize_t linked_write(struct file *filp, const char __user *user_buf,
 			result = count;
 			goto err_contents;
 		}
+		// writer critical section, condition wait mechanism
+		mutex_lock(&rw_mutex);
+		while(reader_count > 0){
+			mutex_unlock(&rw_mutex);
+			wait_event_interruptible(w_queue, true);
+			mutex_lock(&rw_mutex);
+		}
 		list_add_tail(&(data->list), &buffer);
+		mutex_unlock(&rw_mutex);
+		
 		total_length += to_copy;
 		*f_pos += to_copy;
 		mdelay(10);
 	}
-	mutex_unlock(&rw_mutex);
 	write_count++;
 	return count;
 
