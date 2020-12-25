@@ -10,6 +10,7 @@
 #include <linux/seq_file.h>
 #include <linux/delay.h>
 #include <linux/mutex.h>
+#include <linux/wait.h>
 
 MODULE_LICENSE("GPL");
 
@@ -37,7 +38,11 @@ struct data {
 LIST_HEAD(buffer);
 size_t total_length;
 
+// synchronization tools
 DEFINE_MUTEX(rw_mutex);
+static DECLARE_WAIT_QUEUE_HEAD(w_queue);
+int reader_count = 0;
+// synchronization tools
 
 static int __init linked_init(void)
 {
@@ -107,7 +112,11 @@ ssize_t linked_read(struct file *filp, char __user *user_buf,
 
 	if (*f_pos > total_length)
 		return 0;
+
 	mutex_lock(&rw_mutex);
+	reader_count++;
+	mutex_unlock(&rw_mutex);
+	
 	if (list_empty(&buffer))
 		printk(KERN_DEBUG "linked: empty list\n");
 
@@ -137,7 +146,15 @@ ssize_t linked_read(struct file *filp, char __user *user_buf,
 		if (copied >= count)
 			break;
 	}
+
+	// wake up waiting reader
+	mutex_lock(&rw_mutex);
+	reader_count--;
+	if(reader_count == 0){
+		wake_up_interruptible(&w_queue);
+	}
 	mutex_unlock(&rw_mutex);
+
 	printk(KERN_WARNING "linked: copied=%zd real_length=%zd\n",
 		copied, real_length);
 	*f_pos += real_length;
@@ -154,7 +171,14 @@ ssize_t linked_write(struct file *filp, const char __user *user_buf,
 
 	printk(KERN_WARNING "linked: write, count=%zu f_pos=%lld\n",
 		count, *f_pos);
+	// condition wait mechanism
 	mutex_lock(&rw_mutex);
+	while(reader_count > 0){
+		mutex_unlock(&rw_mutex);
+		wait_event_interruptible(w_queue, true);
+		mutex_lock(&rw_mutex);
+	}
+	
 	for (i = 0; i < count; i += INTERNAL_SIZE) {
 		size_t to_copy = min((size_t) INTERNAL_SIZE, count - i);
 
