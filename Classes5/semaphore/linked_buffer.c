@@ -114,9 +114,9 @@ ssize_t linked_read(struct file *filp, char __user *user_buf,
 		return 0;
 
 	if(down_interruptible(&rw_semaphore)){
-        printk(KERN_WARNING, "interrupted, no semaphore acquired");
-        return -EINTR;
-    }
+       		printk(KERN_WARNING, "interrupted, no semaphore acquired");
+        	return -EINTR;
+   	}
 	reader_count++;
 	up(&rw_semaphore);
 	
@@ -151,9 +151,9 @@ ssize_t linked_read(struct file *filp, char __user *user_buf,
 
 	// wake up waiting reader
 	if(down_interruptible(&rw_semaphore)){
-        printk(KERN_WARNING, "interrupted, no semaphore acquired");
-        return -EINTR;
-    }
+        	printk(KERN_WARNING, "interrupted, no semaphore acquired");
+        	return -EINTR;
+   	}
 	reader_count--;
 	if(reader_count == 0){
 		wake_up_interruptible(&w_queue);
@@ -198,21 +198,21 @@ ssize_t linked_write(struct file *filp, const char __user *user_buf,
 		}
 		// writer critical section
 		if(down_interruptible(&rw_semaphore)){
-            printk(KERN_WARNING, "interrupted, no semaphore acquired");
-            return -EINTR;
-        }
+           		printk(KERN_WARNING, "interrupted, no semaphore acquired");
+            		return -EINTR;
+        	}
         // condition wait mechanism
 		while(reader_count > 0){
 			up(&rw_semaphore);
 			wait_event_interruptible(w_queue, true);
 			if(down_interruptible(&rw_semaphore)){
-                printk(KERN_WARNING, "interrupted, no semaphore acquired");
-                return -EINTR;
-            }
+                		printk(KERN_WARNING, "interrupted, no semaphore acquired");
+                		return -EINTR;
+            		}
 		}
 
 		list_add_tail(&(data->list), &buffer);
-        up(&rw_semaphore);
+        	up(&rw_semaphore);
 		
 		total_length += to_copy;
 		*f_pos += to_copy;
