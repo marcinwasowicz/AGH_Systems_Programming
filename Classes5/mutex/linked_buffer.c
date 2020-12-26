@@ -136,7 +136,6 @@ ssize_t linked_read(struct file *filp, char __user *user_buf,
 
 		if (copy_to_user(user_buf + copied, data->contents, to_copy)) {
 			printk(KERN_WARNING "linked: could not copy data to user\n");
-			mutex_unlock(&rw_mutex);
 			return -EFAULT;
 		}
 		copied += to_copy;
