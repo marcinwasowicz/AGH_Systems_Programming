@@ -11,4 +11,5 @@ buf_3="$(printf 'O%.0s' {1..100000})"
 for i in `seq 30`
 do
     (cat /dev/linked > foo.txt)
+    (sleep 5)
 done
