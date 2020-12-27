@@ -144,7 +144,6 @@ ssize_t linked_read(struct file *filp, char __user *user_buf,
 	}
 
 	up(&gbl_semaphore);
-
 	printk(KERN_WARNING "linked: copied=%zd real_length=%zd\n", copied, real_length);
 	*f_pos += real_length;
 	read_count++;
@@ -181,6 +180,7 @@ ssize_t linked_write(struct file *filp, const char __user *user_buf,
         
 		if(down_interruptible(&gbl_semaphore)){
 			printk(KERN_WARNING, "interrupted, no semaphore acquired");
+			kfree(data);
         	return -EINTR;
 		}
 		list_add_tail(&(data->list), &buffer);
