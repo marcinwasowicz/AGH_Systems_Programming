@@ -109,7 +109,10 @@ ssize_t linked_read(struct file *filp, char __user *user_buf,
 		return 0;
 
 	
-	mutex_lock(&gbl_mutex);
+	if(mutex_lock_interruptible(&gbl_mutex)){
+		printk(KERN_WARNING, "interupted, no mutex acquired\n");
+		return -EINTR;
+	}
 	
 	if (list_empty(&buffer))
 		printk(KERN_DEBUG "linked: empty list\n");
@@ -179,8 +182,12 @@ ssize_t linked_write(struct file *filp, const char __user *user_buf,
 			result = count;
 			goto err_contents;
 		}
-		// writer critical section
-		mutex_lock(&gbl_mutex);
+		
+		if(mutex_lock_interruptible(&gbl_mutex)){
+			printk(KERN_WARNING, "interrupted, no mutex acquired\n");
+			kfree(data);
+			return -EINTR;
+		}
 		list_add_tail(&(data->list), &buffer);
 		mutex_unlock(&gbl_mutex);
 		
