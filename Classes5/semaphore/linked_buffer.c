@@ -10,7 +10,6 @@
 #include <linux/seq_file.h>
 #include <linux/delay.h>
 #include <linux/semaphore.h>
-#include <linux/wait.h>
 
 MODULE_LICENSE("GPL");
 
@@ -38,11 +37,7 @@ struct data {
 LIST_HEAD(buffer);
 size_t total_length;
 
-// synchronization tools
-DEFINE_SEMAPHORE(rw_semaphore);
-static DECLARE_WAIT_QUEUE_HEAD(w_queue);
-int reader_count = 0;
-// synchronization tools
+DEFINE_SEMAPHORE(gbl_semaphore);
 
 static int __init linked_init(void)
 {
@@ -113,12 +108,10 @@ ssize_t linked_read(struct file *filp, char __user *user_buf,
 	if (*f_pos > total_length)
 		return 0;
 
-	if(down_interruptible(&rw_semaphore)){
-       		printk(KERN_WARNING, "interrupted, no semaphore acquired");
-        	return -EINTR;
+	if(down_interruptible(&gbl_semaphore)){
+       	printk(KERN_WARNING, "interrupted, no semaphore acquired");
+    	return -EINTR;
    	}
-	reader_count++;
-	up(&rw_semaphore);
 	
 	if (list_empty(&buffer))
 		printk(KERN_DEBUG "linked: empty list\n");
@@ -139,6 +132,7 @@ ssize_t linked_read(struct file *filp, char __user *user_buf,
 
 		if (copy_to_user(user_buf + copied, data->contents, to_copy)) {
 			printk(KERN_WARNING "linked: could not copy data to user\n");
+			up(&gbl_semaphore);
 			return -EFAULT;
 		}
 		copied += to_copy;
@@ -149,19 +143,9 @@ ssize_t linked_read(struct file *filp, char __user *user_buf,
 			break;
 	}
 
-	// wake up waiting reader
-	if(down_interruptible(&rw_semaphore)){
-        	printk(KERN_WARNING, "interrupted, no semaphore acquired");
-        	return -EINTR;
-   	}
-	reader_count--;
-	if(reader_count == 0){
-		wake_up_interruptible(&w_queue);
-	}
-	up(&rw_semaphore);
+	up(&gbl_semaphore);
 
-	printk(KERN_WARNING "linked: copied=%zd real_length=%zd\n",
-		copied, real_length);
+	printk(KERN_WARNING "linked: copied=%zd real_length=%zd\n", copied, real_length);
 	*f_pos += real_length;
 	read_count++;
 	return copied;
@@ -174,9 +158,7 @@ ssize_t linked_write(struct file *filp, const char __user *user_buf,
 	ssize_t result = 0;
 	size_t i = 0;
 
-	printk(KERN_WARNING "linked: write, count=%zu f_pos=%lld\n",
-		count, *f_pos);
-	
+	printk(KERN_WARNING "linked: write, count=%zu f_pos=%lld\n",count, *f_pos);
 	for (i = 0; i < count; i += INTERNAL_SIZE) {
 		size_t to_copy = min((size_t) INTERNAL_SIZE, count - i);
 
@@ -196,24 +178,13 @@ ssize_t linked_write(struct file *filp, const char __user *user_buf,
 			result = count;
 			goto err_contents;
 		}
-		// writer critical section
-		if(down_interruptible(&rw_semaphore)){
-           		printk(KERN_WARNING, "interrupted, no semaphore acquired");
-            		return -EINTR;
-        	}
-        // condition wait mechanism
-		while(reader_count > 0){
-			up(&rw_semaphore);
-			wait_event_interruptible(w_queue, true);
-			if(down_interruptible(&rw_semaphore)){
-                		printk(KERN_WARNING, "interrupted, no semaphore acquired");
-                		return -EINTR;
-            		}
+        
+		if(down_interruptible(&gbl_semaphore)){
+			printk(KERN_WARNING, "interrupted, no semaphore acquired");
+        	return -EINTR;
 		}
-
 		list_add_tail(&(data->list), &buffer);
-        	up(&rw_semaphore);
-		
+		up(&gbl_semaphore);
 		total_length += to_copy;
 		*f_pos += to_copy;
 		mdelay(10);
