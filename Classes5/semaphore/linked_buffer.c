@@ -10,6 +10,7 @@
 #include <linux/seq_file.h>
 #include <linux/delay.h>
 #include <linux/semaphore.h>
+#include <linux/rwsem.h>
 
 MODULE_LICENSE("GPL");
 
@@ -37,7 +38,7 @@ struct data {
 LIST_HEAD(buffer);
 size_t total_length;
 
-DEFINE_SEMAPHORE(gbl_semaphore);
+DECLARE_RWSEM(gbl_semaphore);
 
 static int __init linked_init(void)
 {
@@ -108,11 +109,8 @@ ssize_t linked_read(struct file *filp, char __user *user_buf,
 	if (*f_pos > total_length)
 		return 0;
 
-	if(down_interruptible(&gbl_semaphore)){
-       	printk(KERN_WARNING, "interrupted, no semaphore acquired");
-    	return -EINTR;
-   	}
-	
+	down_read(&gbl_semaphore);
+
 	if (list_empty(&buffer))
 		printk(KERN_DEBUG "linked: empty list\n");
 
@@ -132,7 +130,7 @@ ssize_t linked_read(struct file *filp, char __user *user_buf,
 
 		if (copy_to_user(user_buf + copied, data->contents, to_copy)) {
 			printk(KERN_WARNING "linked: could not copy data to user\n");
-			up(&gbl_semaphore);
+			up_read(&gbl_semaphore);
 			return -EFAULT;
 		}
 		copied += to_copy;
@@ -143,7 +141,7 @@ ssize_t linked_read(struct file *filp, char __user *user_buf,
 			break;
 	}
 
-	up(&gbl_semaphore);
+	up_read(&gbl_semaphore);
 	printk(KERN_WARNING "linked: copied=%zd real_length=%zd\n", copied, real_length);
 	*f_pos += real_length;
 	read_count++;
@@ -178,13 +176,9 @@ ssize_t linked_write(struct file *filp, const char __user *user_buf,
 			goto err_contents;
 		}
         
-		if(down_interruptible(&gbl_semaphore)){
-			printk(KERN_WARNING, "interrupted, no semaphore acquired");
-			kfree(data);
-        	return -EINTR;
-		}
+		down_write(&gbl_semaphore);
 		list_add_tail(&(data->list), &buffer);
-		up(&gbl_semaphore);
+		up_write(&gbl_semaphore);
 		total_length += to_copy;
 		*f_pos += to_copy;
 		mdelay(10);
