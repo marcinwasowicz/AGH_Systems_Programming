@@ -39,7 +39,7 @@ struct data {
 LIST_HEAD(buffer);
 size_t total_length;
 
-DEFINE_SPINLOCK(gbl_lock);
+DEFINE_RWLOCK(gbl_lock);
 unsigned long lock_flags;
 
 static int __init linked_init(void)
@@ -111,7 +111,7 @@ ssize_t linked_read(struct file *filp, char __user *user_buf,
 	if (*f_pos > total_length)
 		return 0;
 
-    spin_lock_irqsave(&gbl_lock, lock_flags);
+    read_lock(&gbl_lock);
 	if (list_empty(&buffer))
 		printk(KERN_DEBUG "linked: empty list\n");
 
@@ -131,7 +131,7 @@ ssize_t linked_read(struct file *filp, char __user *user_buf,
 
 		if (copy_to_user(user_buf + copied, data->contents, to_copy)) {
 			printk(KERN_WARNING "linked: could not copy data to user\n");
-            spin_unlock_irqrestore(&gbl_lock, lock_flags);
+            read_unlock(&gbl_lock);
 			return -EFAULT;
 		}
 		copied += to_copy;
@@ -141,7 +141,7 @@ ssize_t linked_read(struct file *filp, char __user *user_buf,
 		if (copied >= count)
 			break;
 	}
-    spin_unlock_irqrestore(&gbl_lock, lock_flags);
+    read_unlock(&gbl_lock);
 	printk(KERN_WARNING "linked: copied=%zd real_length=%zd\n",
 		copied, real_length);
 	*f_pos += real_length;
@@ -178,9 +178,9 @@ ssize_t linked_write(struct file *filp, const char __user *user_buf,
 			result = count;
 			goto err_contents;
 		}
-        spin_lock_irqsave(&gbl_lock, lock_flags);
+        write_lock(&gbl_lock);
 		list_add_tail(&(data->list), &buffer);
-        spin_unlock_irqrestore(&gbl_lock, lock_flags);
+        write_unlock(&gbl_lock);
 		total_length += to_copy;
 		*f_pos += to_copy;
 		mdelay(10);
