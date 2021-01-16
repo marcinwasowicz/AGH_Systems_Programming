@@ -1349,5 +1349,5 @@ asmlinkage long sys_topuser(uid_t* usr_id);
 asmlinkage long sys_timeuser(uid_t* usr_id);
 asmlinkage long sys_kernelps(size_t* ps_count, char** buff);
 asmlinkage long sys_freeblocks(char* path, u64* count);
-asmlinkage long sys_pidtoname(pid_t proc_id, char* user_name);
+asmlinkage long sys_pidtoname(pid_t proc_id, char* proc_name);
 #endif
