@@ -5,7 +5,7 @@
 #include <errno.h>
 #include <stdlib.h>
 
-#define kernelps_syscall 443
+#define kernelps_syscall 442
 
 int main(){
     size_t proc_count;

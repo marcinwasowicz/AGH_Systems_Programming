@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <errno.h>
 
-#define topuser_syscall 441
+#define topuser_syscall 440
 
 int main() {
     uid_t max_user;

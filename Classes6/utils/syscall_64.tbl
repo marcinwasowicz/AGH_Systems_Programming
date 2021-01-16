@@ -361,12 +361,11 @@
 437	common	openat2			sys_openat2
 438	common	pidfd_getfd		sys_pidfd_getfd
 439	common	faccessat2		sys_faccessat2
-440	common	hello			sys_hello
-441 common  topuser         sys_topuser
-442 common  timeuser        sys_timeuser
-443 common  kernelps        sys_kernelps
-444 common  freeblocks      sys_freeblocks
-445 common  pidtoname       sys_pidtoname
+440 common  topuser         sys_topuser
+441 common  timeuser        sys_timeuser
+442 common  kernelps        sys_kernelps
+443 common  freeblocks      sys_freeblocks
+444 common  pidtoname       sys_pidtoname
 
 #
 # x32-specific system call numbers start at 512 to avoid cache impact

@@ -6,7 +6,7 @@
 #include <stdlib.h>
 
 
-#define freeblocks_syscall 444
+#define freeblocks_syscall 443
 
 int main(int argc, char* argv[]){
     char* file_path = argv[1];

@@ -1344,7 +1344,6 @@ int __sys_getsockopt(int fd, int level, int optname, char __user *optval,
 		int __user *optlen);
 int __sys_setsockopt(int fd, int level, int optname, char __user *optval,
 		int optlen);
-asmlinkage long sys_hello(void);
 asmlinkage long sys_topuser(uid_t* usr_id);
 asmlinkage long sys_timeuser(uid_t* usr_id);
 asmlinkage long sys_kernelps(size_t* ps_count, char** buff);

@@ -5,7 +5,7 @@
 #include <errno.h>
 #include <stdlib.h>
 
-#define pidtoname_syscall 445
+#define pidtoname_syscall 444
 
 int main(int argc, char* argv[]){
     pid_t proc_id = atoi(argv[1]);
