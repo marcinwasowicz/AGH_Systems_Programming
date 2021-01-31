@@ -38,7 +38,7 @@ irqreturn_t handler(int interrupt_no, void* cookie){
 static int __init interrupt_init(void){
     timer_setup(&my_timer, timer_handler, timer_flags);
     tasklet_init(&my_tasklet, tasklet_handler, tasklet_data);
-    
+
     int result = request_irq(net_dev_irq_no, handler, IRQF_SHARED, net_dev_name, &handler_cookie);
 
     if(result){
@@ -50,7 +50,7 @@ static int __init interrupt_init(void){
 static void __exit interrupt_exit(void){
     free_irq(net_dev_irq_no, &handler_cookie);
     tasklet_kill(&my_tasklet);
-    del_timer(&my_timer);
+    del_timer_sync(&my_timer);
 }
 
 module_init(interrupt_init);
